@@ -1,676 +1,110 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>미니 키오스크</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bwip-js/4.7.0/bwip-js-min.js"></script>
-
-<style>
-*{box-sizing:border-box}
-body{
-    margin:0;
-    font-family:Arial,sans-serif;
-    background:#111;
-    color:white;
-}
-.container{
-    max-width:700px;
-    margin:auto;
-    padding:20px;
-}
-h1{text-align:center}
-.card{
-    background:#1d1d1d;
-    border-radius:15px;
-    padding:18px;
-    margin:15px 0;
-}
-input,button{
-    width:100%;
-    padding:13px;
-    margin:5px 0;
-    border:0;
-    border-radius:10px;
-    font-size:16px;
-}
-button{
-    background:#4d8cff;
-    color:white;
-    cursor:pointer;
-}
-button:active{transform:scale(.98)}
-.product{
-    background:#292929;
-    padding:12px;
-    margin:8px 0;
-    border-radius:10px;
-}
-.price{font-weight:bold}
-canvas{
-    max-width:100%;
-    background:white;
-    padding:10px;
-    margin-top:10px;
-}
-.total{
-    font-size:25px;
-    text-align:right;
-    margin-top:15px;
-}
-video{
-    width:100%;
-    border-radius:12px;
-    background:#000;
-}
-.small{
-    color:#aaa;
-    font-size:13px;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>바코드 생성 및 스캔 모의 UI</title>
+  <!-- JsBarcode 라이브러리 (바코드 생성) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <!-- ZXing 라이브러리 (바코드/QR 스캔) -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; text-align: center; }
+    .card { border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+    input, button { padding: 10px; margin: 5px; font-size: 16px; width: 80%; }
+    button { background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    video { width: 100%; max-width: 400px; border: 1px solid #333; margin-top: 10px; display: none; }
+  </style>
 </head>
-
 <body>
 
-<div class="container">
+  <h2>바코드 모의 테스트 시스템</h2>
 
-<h1>🛒 미니 키오스크</h1>
+  <!-- 1. 바코드 생성 영역 -->
+  <div class="card">
+    <h3>1. 테스트 바코드 생성</h3>
+    <input type="text" id="barcodeInput" value="TEST-123456" placeholder="텍스트 입력">
+    <button onclick="generateBarcode()">바코드 생성</button>
+    <br>
+    <svg id="barcodeCanvas"></svg>
+  </div>
 
-<!-- 상품 생성 -->
-<div class="card">
-<h2>상품 등록</h2>
+  <!-- 2. 바코드 스캔 및 가상 결제 영역 -->
+  <div class="card">
+    <h3>2. 바코드 스캔 & 결제 시뮬레이션</h3>
+    <button onclick="startScanner()">카메라 스캔 시작</button>
+    <button onclick="stopScanner()">스캔 중지</button>
+    <div>
+      <video id="video"></video>
+    </div>
+    
+    <p>스캔 결과: <strong id="scannedResult">없음</strong></p>
+    <button id="payBtn" onclick="processMockPayment()" disabled>가상 결제 진행</button>
+  </div>
 
-<input id="name" placeholder="상품명">
-<input id="price" type="number" placeholder="가격">
-
-<button onclick="addProduct()">상품 등록 + 바코드 생성</button>
-
-<p class="small">
-상품을 등록하면 고유 상품코드가 자동으로 만들어집니다.
-</p>
-</div>
-
-
-<!-- 생성된 바코드 -->
-<div class="card">
-<h2>📦 바코드</h2>
-
-<div id="barcodeArea">
-상품을 선택하세요.
-</div>
-
-<button onclick="printBarcode()">🖨️ 바코드 인쇄</button>
-</div>
-
-
-<!-- 상품 목록 -->
-<div class="card">
-<h2>📋 상품 목록</h2>
-<div id="products"></div>
-</div>
-
-
-<!-- 카메라 -->
-<div class="card">
-<h2>📷 상품 리더기</h2>
-
-<video id="video" autoplay playsinline></video>
-
-<button onclick="startCamera()">카메라 시작</button>
-<button onclick="stopCamera()">카메라 끄기</button>
-
-<p id="scanResult">스캔 대기중...</p>
-</div>
-
-
-<!-- 계산 -->
-<div class="card">
-<h2>🧮 계산</h2>
-
-<div id="cart"></div>
-
-<div class="total">
-총액: <span id="total">0</span>원
-</div>
-
-<button onclick="clearCart()">장바구니 비우기</button>
-</div>
-
-</div>
-
-
-<script>
-
-let products =
-JSON.parse(localStorage.getItem("products") || "[]");
-
-let cart = [];
-
-let currentProduct = null;
-
-let stream = null;
-
-
-/* =========================
-   상품 코드 생성
-========================= */
-
-function makeProductCode(){
-
-    return "P" +
-        Date.now().toString(36).toUpperCase() +
-        Math.random()
-        .toString(36)
-        .substring(2,6)
-        .toUpperCase();
-}
-
-
-/* =========================
-   상품 등록
-========================= */
-
-function addProduct(){
-
-    const name =
-        document.getElementById("name").value.trim();
-
-    const price =
-        Number(document.getElementById("price").value);
-
-    if(!name || !price){
-
-        alert("상품명과 가격을 입력하세요.");
-        return;
+  <script>
+    // 1. 바코드 생성 함수
+    function generateBarcode() {
+      const val = document.getElementById('barcodeInput').value;
+      if (!val) return alert('값을 입력하세요.');
+      JsBarcode("#barcodeCanvas", val, {
+        format: "CODE128",
+        width: 2,
+        height: 80,
+        displayValue: true
+      });
     }
 
-    const product = {
-
-        id:makeProductCode(),
-
-        name:name,
-
-        price:price
-
-    };
-
-    products.push(product);
-
-    localStorage.setItem(
-        "products",
-        JSON.stringify(products)
-    );
-
-    document.getElementById("name").value="";
-    document.getElementById("price").value="";
-
-    renderProducts();
-
-    showBarcode(product);
-}
-
-
-/* =========================
-   상품 목록
-========================= */
-
-function renderProducts(){
-
-    const box =
-        document.getElementById("products");
-
-    box.innerHTML="";
-
-    if(products.length===0){
-
-        box.innerHTML="<p>등록된 상품이 없습니다.</p>";
-        return;
-    }
-
-    products.forEach(product=>{
-
-        const div =
-            document.createElement("div");
-
-        div.className="product";
-
-        div.innerHTML=`
-
-            <b>${escapeHTML(product.name)}</b>
-
-            <br>
-
-            <span class="price">
-            ${product.price.toLocaleString()}원
-            </span>
-
-            <br>
-
-            <span class="small">
-            상품코드: ${product.id}
-            </span>
-
-            <button
-            onclick="showBarcodeById('${product.id}')">
-            바코드 보기
-            </button>
-
-            <button
-            onclick="addCart('${product.id}')">
-            장바구니 추가
-            </button>
-
-        `;
-
-        box.appendChild(div);
-
-    });
-}
-
-
-/* =========================
-   바코드 생성
-========================= */
-
-function showBarcodeById(id){
-
-    const product =
-        products.find(p=>p.id===id);
-
-    if(product){
-
-        showBarcode(product);
-
-    }
-}
-
-
-function showBarcode(product){
-
-    currentProduct=product;
-
-    const area =
-        document.getElementById("barcodeArea");
-
-    area.innerHTML=`
-
-        <b>${escapeHTML(product.name)}</b>
-
-        <br>
-
-        ${product.price.toLocaleString()}원
-
-        <br>
-
-        <span class="small">
-        상품코드: ${product.id}
-        </span>
-
-        <br>
-
-        <canvas id="barcode"></canvas>
-
-    `;
-
-
-    try{
-
-        bwipjs.toCanvas(
-            document.getElementById("barcode"),
-            {
-
-                bcid:"code128",
-
-                text:
-                    product.id +
-                    "|" +
-                    product.name +
-                    "|" +
-                    product.price,
-
-                scale:3,
-
-                height:25,
-
-                includetext:true,
-
-                textxalign:"center"
-
-            }
-        );
-
-    }catch(error){
-
-        console.error(error);
-
-        area.innerHTML +=
-            "<p>바코드 생성 실패</p>";
-
-    }
-
-}
-
-
-/* =========================
-   장바구니
-========================= */
-
-function addCart(id){
-
-    const product =
-        products.find(p=>p.id===id);
-
-    if(!product)return;
-
-    cart.push(product);
-
-    renderCart();
-
-}
-
-
-function renderCart(){
-
-    const box =
-        document.getElementById("cart");
-
-    box.innerHTML="";
-
-    let total=0;
-
-    cart.forEach((product,index)=>{
-
-        total += product.price;
-
-        const div =
-            document.createElement("div");
-
-        div.className="product";
-
-        div.innerHTML=`
-
-            ${escapeHTML(product.name)}
-
-            -
-            ${product.price.toLocaleString()}원
-
-            <button
-            onclick="removeCart(${index})">
-            삭제
-            </button>
-
-        `;
-
-        box.appendChild(div);
-
-    });
-
-    document.getElementById("total")
-        .textContent =
-        total.toLocaleString();
-
-}
-
-
-function removeCart(index){
-
-    cart.splice(index,1);
-
-    renderCart();
-
-}
-
-
-function clearCart(){
-
-    cart=[];
-
-    renderCart();
-
-}
-
-
-/* =========================
-   카메라
-========================= */
-
-async function startCamera(){
-
-    try{
-
-        stream =
-            await navigator.mediaDevices
-            .getUserMedia({
-
-                video:{
-                    facingMode:"environment"
-                },
-
-                audio:false
-
-            });
-
-        document.getElementById("video")
-            .srcObject=stream;
-
-        document.getElementById("scanResult")
-            .textContent=
-            "카메라 작동 중";
-
-    }catch(error){
-
-        console.error(error);
-
-        alert(
-            "카메라를 사용할 수 없습니다.\n" +
-            "HTTPS 또는 localhost에서 실행해주세요."
-        );
-
-    }
-
-}
-
-
-function stopCamera(){
-
-    if(stream){
-
-        stream.getTracks().forEach(
-            track=>track.stop()
-        );
-
-        stream=null;
-
-        document.getElementById("video")
-            .srcObject=null;
-
-        document.getElementById("scanResult")
-            .textContent="카메라 꺼짐";
-
-    }
-
-}
-
-
-/* =========================
-   바코드 인식
-========================= */
-
-async function scanBarcode(){
-
-    if(!("BarcodeDetector" in window)){
-
-        document.getElementById("scanResult")
-            .textContent=
-            "이 브라우저는 바코드 인식을 지원하지 않습니다.";
-
-        return;
-
-    }
-
-    const detector =
-        new BarcodeDetector({
-            formats:["code_128"]
+    // 초기 화면 바코드 1개 생성
+    generateBarcode();
+
+    // 2. 바코드 스캐너 설정
+    let codeReader = null;
+    let selectedDeviceId = null;
+
+    async function startScanner() {
+      const videoElem = document.getElementById('video');
+      videoElem.style.display = 'block';
+
+      codeReader = new ZXing.BrowserMultiFormatReader();
+      
+      try {
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        // 기본적으로 후면 카메라 또는 첫 번째 카메라 선택
+        selectedDeviceId = videoInputDevices[0].deviceId;
+
+        codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+          if (result) {
+            document.getElementById('scannedResult').innerText = result.text;
+            document.getElementById('payBtn').disabled = false;
+            // 스캔 성공 시 카메라는 계속 작동하거나 필요시 stopScanner() 호출
+          }
         });
-
-    const video =
-        document.getElementById("video");
-
-    try{
-
-        const codes =
-            await detector.detect(video);
-
-        if(codes.length){
-
-            const value =
-                codes[0].rawValue;
-
-            document.getElementById("scanResult")
-                .textContent=
-                "인식: "+value;
-
-            const id =
-                value.split("|")[0];
-
-            const product =
-                products.find(p=>p.id===id);
-
-            if(product){
-
-                addCart(product.id);
-
-            }
-
-        }
-
-    }catch(error){
-
-        console.log(error);
-
+      } catch (err) {
+        console.error(err);
+        alert('카메라 접근 권한을 확인해 주세요.');
+      }
     }
 
-}
-
-
-/* 카메라가 켜져 있으면 계속 스캔 */
-
-setInterval(()=>{
-
-    if(stream){
-
-        scanBarcode();
-
+    function stopScanner() {
+      if (codeReader) {
+        codeReader.reset();
+        document.getElementById('video').style.display = 'none';
+      }
     }
 
-},500);
+    // 3. 모의 결제 로직 (UI 전용)
+    function processMockPayment() {
+      const code = document.getElementById('scannedResult').innerText;
+      if (code === '없음') return;
 
-
-/* =========================
-   인쇄
-========================= */
-
-function printBarcode(){
-
-    if(!currentProduct){
-
-        alert("먼저 상품을 선택하세요.");
-
-        return;
-
+      alert(`[모의 결제 완료]\n스캔된 바코드 ID: ${code}\n가상 결제가 성공적으로 처리되었습니다.`);
+      
+      // Reset
+      document.getElementById('scannedResult').innerText = '없음';
+      document.getElementById('payBtn').disabled = true;
     }
-
-    const canvas =
-        document.getElementById("barcode");
-
-    if(!canvas){
-
-        alert("바코드가 없습니다.");
-
-        return;
-
-    }
-
-    const win =
-        window.open("");
-
-    win.document.write(`
-
-        <html>
-
-        <head>
-
-        <title>바코드 인쇄</title>
-
-        <style>
-        body{
-            text-align:center;
-            font-family:Arial;
-        }
-        img{
-            max-width:90%;
-        }
-        </style>
-
-        </head>
-
-        <body>
-
-        <h2>
-        ${escapeHTML(currentProduct.name)}
-        </h2>
-
-        <p>
-        ${currentProduct.price.toLocaleString()}원
-        </p>
-
-        <img src="${canvas.toDataURL()}">
-
-        <p>
-        상품코드: ${currentProduct.id}
-        </p>
-
-        <script>
-        window.onload=function(){
-            window.print();
-        }
-        <\/script>
-
-        </body>
-
-        </html>
-
-    `);
-
-    win.document.close();
-
-}
-
-
-/* =========================
-   HTML 안전 처리
-========================= */
-
-function escapeHTML(text){
-
-    return String(text)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-
-}
-
-
-/* 시작 */
-
-renderProducts();
-
-renderCart();
-
-</script>
-
+  </script>
 </body>
 </html>
