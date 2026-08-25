@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>키오스크 상품 계산 시스템</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+
+<style>
+
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  background:#eef0f3;
+  font-family:Arial,"Noto Sans KR",sans-serif;
+  color:#111;
+}
+
+header{
+  background:#111;
+  color:white;
+  padding:18px;
+  text-align:center;
+  font-size:24px;
+  font-weight:bold;
+}
+
+.tabs{
+  display:flex;
+  background:white;
+  position:sticky;
+  top:0;
+  z-index:10;
+  box-shadow:0 2px 8px #0002;
+}
+
+.tabs button{
+  flex:1;
+  border:0;
+  background:white;
+  padding:15px 5px;
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.tabs button.active{
+  background:#111;
+  color:white;
+}
+
+.page{
+  display:none;
+  max-width:1000px;
+  margin:auto;
+  padding:20px;
+}
+
+.page.active{
+  display:block;
+}
+
+.panel{
+  background:white;
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 5px 20px #0001;
+}
+
+h2{
+  margin-top:0;
+}
+
+input{
+  width:100%;
+  height:50px;
+  border:2px solid #ddd;
+  border-radius:12px;
+  padding:0 14px;
+  font-size:18px;
+  margin-bottom:10px;
+  outline:none;
+}
+
+input:focus{
+  border-color:#111;
+}
+
+button{
+  border:0;
+  border-radius:12px;
+  padding:13px 18px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:active{
+  transform:scale(.98);
+}
+
+.primary{
+  background:#111;
+  color:white;
+}
+
+.green{
+  background:#16833b;
+  color:white;
+}
+
+.red{
+  background:#d71919;
+  color:white;
+}
+
+.gray{
+  background:#ddd;
+  color:#111;
+}
+
+.big{
+  width:100%;
+  min-height:60px;
+  font-size:21px;
+  margin-top:10px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:
+  repeat(auto-fit,minmax(130px,1fr));
+  gap:10px;
+}
+
+.productBtn{
+  min-height:105px;
+  background:#f5f5f5;
+  border:2px solid #ddd;
+}
+
+.productBtn strong{
+  display:block;
+  font-size:17px;
+  margin-bottom:8px;
+}
+
+.productBtn span{
+  display:block;
+  font-size:18px;
+}
+
+.productCode{
+  display:block;
+  color:#888;
+  font-size:12px;
+  margin-top:7px;
+}
+
+.cartItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid #eee;
+  padding:13px 0;
+}
+
+.cartInfo{
+  flex:1;
+}
+
+.cartName{
+  font-weight:bold;
+  font-size:17px;
+}
+
+.cartPrice{
+  color:#666;
+  margin-top:4px;
+}
+
+.qty{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.qty button{
+  width:35px;
+  height:35px;
+  padding:0;
+}
+
+.total{
+  font-size:30px;
+  font-weight:bold;
+  text-align:right;
+  padding:20px 0;
+}
+
+#scanner{
+  width:100%;
+  max-height:400px;
+  background:#000;
+  border-radius:15px;
+  margin-top:10px;
+}
+
+.result{
+  margin-top:10px;
+  padding:15px;
+  border-radius:12px;
+  background:#f3f3f3;
+  text-align:center;
+  font-size:19px;
+  font-weight:bold;
+}
+
+.barcodeBox{
+  text-align:center;
+  border:2px dashed #ddd;
+  padding:20px;
+  margin-top:20px;
+  border-radius:15px;
+}
+
+#barcode{
+  max-width:100%;
+  height:auto;
+}
+
+.barcodeInfo{
+  font-size:24px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.barcodeCode{
+  color:#777;
+  margin-top:5px;
+}
+
+.productList{
+  display:grid;
+  gap:10px;
+}
+
+.savedProduct{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:14px;
+  border:1px solid #ddd;
+  border-radius:12px;
+}
+
+.savedProductInfo{
+  flex:1;
+}
+
+.savedProductName{
+  font-size:18px;
+  font-weight:bold;
+}
+
+.savedProductCode{
+  color:#777;
+  font-size:13px;
+  margin-top:4px;
+}
+
+.savedProductPrice{
+  margin-top:5px;
+  font-size:17px;
+}
+
+.empty{
+  text-align:center;
+  color:#888;
+  padding:20px;
+}
+
+.codeBox{
+  background:#f5f5f5;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:12px;
+  font-size:14px;
+}
+
+@media(max-width:600px){
+
+  .page{
+    padding:10px;
+  }
+
+  .panel{
+    padding:15px;
+  }
+
+  header{
+    font-size:20px;
+  }
+
+  .cartItem{
+    align-items:flex-start;
+  }
+
+  .total{
+    font-size:25px;
+  }
+
+}
+
+@media print{
+
+  body{
+    background:white;
+    padding:0;
+  }
+
+  header,
+  .tabs,
+  .generatorButtons,
+  .scanner-section,
+  .product-management{
+    display:none !important;
+  }
+
+  .page{
+    display:none !important;
+  }
+
+  #barcodePage{
+    display:block !important;
+    max-width:none;
+    padding:0;
+  }
+
+  #barcodePage .panel{
+    box-shadow:none;
+  }
+
+  .barcodeBox{
+    border:none;
+  }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+  🛒 키오스크 상품 계산 시스템
+</header>
+
+
+<!-- ================================================= -->
+<!-- 메뉴 -->
+<!-- ================================================= -->
+
+<div class="tabs">
+
+  <button
+    class="active"
+    onclick="showPage('kiosk',this)">
+    🛒 계산
+  </button>
+
+  <button
+    onclick="showPage('scannerPage',this)">
+    📷 상품 리더기
+  </button>
+
+  <button
+    onclick="showPage('barcodePage',this)">
+    🏷️ 바코드 생성
+  </button>
+
+  <button
+    onclick="showPage('productsPage',this)">
+    📦 상품 관리
+  </button>
+
+</div>
+
+
+<!-- ================================================= -->
+<!-- 키오스크 -->
+<!-- ================================================= -->
+
+<section id="kiosk" class="page active">
+
+  <div class="panel">
+
+    <h2>🛒 상품 선택</h2>
+
+    <div id="productButtons" class="grid"></div>
+
+  </div>
+
+
+  <div class="panel">
+
+    <h2>🧾 장바구니</h2>
+
+    <div id="cart"></div>
+
+    <div class="total">
+      합계
+      <span id="total">0</span>원
+    </div>
+
+    <button
+      class="green big"
+      onclick="openPayment()">
+      💳 결제하기
+    </button>
+
+    <button
+      class="red big"
+      onclick="clearCart()">
+      🗑️ 전체 삭제
+    </button>
+
+  </div>
+
+</section>
+
+
+<!-- ================================================= -->
+<!-- 카메라 리더기 -->
+<!-- ================================================= -->
+
+<section id="scannerPage" class="page">
+
+  <div class="panel">
+
+    <h2>📷 상품 바코드 리더기</h2>
+
+    <p>
+      생성한 상품 바코드를 카메라로 비추면
+      상품코드를 확인하고 상품목록에서 상품을 찾아
+      장바구니에 자동으로 추가합니다.
+    </p>
+
+    <button
+      class="primary big"
+      onclick="startScanner()">
+      📷 카메라 시작
+    </button>
+
+    <button
+      class="red big"
+      onclick="stopScanner()">
+      ⛔ 카메라 종료
+    </button>
+
+    <video
+      id="scanner"
+      autoplay
+      muted
+      playsinline>
+    </video>
+
+    <div
+      id="scanStatus"
+      class="result">
+      카메라를 시작해주세요.
+    </div>
+
+    <div
+      id="scanResult"
+      class="result">
+      인식된 상품 없음
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ================================================= -->
+<!-- 바코드 생성 -->
+<!-- ================================================= -->
+
+<section id="barcodePage" class="page">
+
+  <div class="panel">
+
+    <h2>🏷️ 상품 바코드 생성</h2>
+
+    <div class="codeBox">
+      바코드 데이터 형식:
+      <strong>상품코드|상품명|가격</strong>
+    </div>
+
+    <input
+      id="barcodeName"
+      type="text"
+      placeholder="상품명 예: 콜라">
+
+    <input
+      id="barcodePrice"
+      type="text"
+      inputmode="numeric"
+      placeholder="가격 예: 1500">
+
+    <div class="generatorButtons">
+
+      <button
+        class="primary big"
+        onclick="generateProductBarcode()">
+        🏷️ 바코드 생성 + 상품 등록
+      </button>
+
+      <button
+        class="gray big"
+        onclick="printBarcode()">
+        🖨️ 바코드 인쇄
+      </button>
+
+    </div>
+
+
+    <div class="barcodeBox">
+
+      <svg id="barcode"></svg>
+
+      <div
+        id="barcodeInfo"
+        class="barcodeInfo">
+      </div>
+
+      <div
+        id="barcodeCode"
+        class="barcodeCode">
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ================================================= -->
+<!-- 상품 관리 -->
+<!-- ================================================= -->
+
+<section id="productsPage" class="page">
+
+  <div class="panel product-management">
+
+    <h2>📦 상품 직접 등록</h2>
+
+    <input
+      id="productName"
+      type="text"
+      placeholder="상품명">
+
+    <input
+      id="productPrice"
+      type="text"
+      inputmode="numeric"
+      placeholder="가격">
+
+    <button
+      class="primary big"
+      onclick="addProduct()">
+      ➕ 상품 등록
+    </button>
+
+  </div>
+
+
+  <div class="panel">
+
+    <h2>📋 상품목록</h2>
+
+    <div
+      id="savedProducts"
+      class="productList">
+    </div>
+
+  </div>
+
+</section>
+
+
+<script>
+
+/* =================================================
+   상품 데이터
+================================================= */
+
+let products =
+  JSON.parse(
+    localStorage.getItem("products")
+  ) || [
+
+    {
+      id:"100001",
+      name:"콜라",
+      price:1500
+    },
+
+    {
+      id:"100002",
+      name:"사이다",
+      price:1500
+    },
+
+    {
+      id:"100003",
+      name:"과자",
+      price:2000
+    },
+
+    {
+      id:"100004",
+      name:"생수",
+      price:1000
+    }
+
+  ];
+
+
+let cart=[];
+
+let scannerControls=null;
+
+
+/* =================================================
+   상품 저장
+================================================= */
+
+function saveProducts(){
+
+  localStorage.setItem(
+    "products",
+    JSON.stringify(products)
+  );
+
+}
+
+
+/* =================================================
+   다음 상품코드 생성
+================================================= */
+
+function generateProductCode(){
+
+  let max=100000;
+
+  products.forEach(product=>{
+
+    const number =
+      parseInt(product.id,10);
+
+    if(
+      Number.isFinite(number) &&
+      number>max
+    ){
+
+      max=number;
+
+    }
+
+  });
+
+  return String(max+1);
+
+}
+
+
+/* =================================================
+   페이지 변경
+================================================= */
+
+function showPage(id,button){
+
+  document
+    .querySelectorAll(".page")
+    .forEach(page=>{
+      page.classList.remove("active");
+    });
+
+  document
+    .getElementById(id)
+    .classList.add("active");
+
+
+  document
+    .querySelectorAll(".tabs button")
+    .forEach(btn=>{
+      btn.classList.remove("active");
+    });
+
+  button.classList.add("active");
+
+}
+
+
+/* =================================================
+   키오스크 상품 버튼
+================================================= */
+
+function renderProductButtons(){
+
+  const box =
+    document.getElementById(
+      "productButtons"
+    );
+
+  box.innerHTML="";
+
+
+  if(products.length===0){
+
+    box.innerHTML=
+      `<div class="empty">
+        등록된 상품이 없습니다.
+      </div>`;
+
+    return;
+
+  }
+
+
+  products.forEach(product=>{
+
+    const button =
+      document.createElement("button");
+
+    button.className="productBtn";
+
+
+    button.innerHTML=`
+
+      <strong>
+        ${escapeHTML(product.name)}
+      </strong>
+
+      <span>
+        ${product.price.toLocaleString("ko-KR")}원
+      </span>
+
+      <small class="productCode">
+        상품코드 ${escapeHTML(product.id)}
+      </small>
+
+    `;
+
+
+    button.onclick=()=>{
+
+      addToCart(product);
+
+    };
+
+
+    box.appendChild(button);
+
+  });
+
+}
+
+
+/* =================================================
+   장바구니 추가
+================================================= */
+
+function addToCart(product){
+
+  const existing =
+    cart.find(
+      item=>item.id===product.id
+    );
+
+
+  if(existing){
+
+    existing.qty++;
+
+  }else{
+
+    cart.push({
+
+      id:product.id,
+
+      name:product.name,
+
+      price:product.price,
+
+      qty:1
+
+    });
+
+  }
+
+
+  renderCart();
+
+}
+
+
+/* =================================================
+   장바구니
+================================================= */
+
+function renderCart(){
+
+  const box =
+    document.getElementById("cart");
+
+  box.innerHTML="";
+
+  let total=0;
+
+
+  if(cart.length===0){
+
+    box.innerHTML=
+      `<div class="empty">
+        장바구니가 비어 있습니다.
+      </div>`;
+
+  }
+
+
+  cart.forEach((item,index)=>{
+
+    const itemTotal =
+      item.price*item.qty;
+
+    total+=itemTotal;
+
+
+    const div =
+      document.createElement("div");
+
+    div.className="cartItem";
+
+
+    div.innerHTML=`
+
+      <div class="cartInfo">
+
+        <div class="cartName">
+          ${escapeHTML(item.name)}
+        </div>
+
+        <div class="cartPrice">
+          ${item.price.toLocaleString("ko-KR")}원
+        </div>
+
+      </div>
+
+
+      <div class="qty">
+
+        <button
+          class="gray"
+          onclick="changeQty(${index},-1)">
+          −
+        </button>
+
+        <strong>
+          ${item.qty}
+        </strong>
+
+        <button
+          class="gray"
+          onclick="changeQty(${index},1)">
+          +
+        </button>
+
+      </div>
+
+
+      <strong>
+        ${itemTotal.toLocaleString("ko-KR")}원
+      </strong>
+
+    `;
+
+
+    box.appendChild(div);
+
+  });
+
+
+  document
+    .getElementById("total")
+    .textContent =
+      total.toLocaleString("ko-KR");
+
+}
+
+
+/* =================================================
+   수량 변경
+================================================= */
+
+function changeQty(index,amount){
+
+  cart[index].qty+=amount;
+
+
+  if(cart[index].qty<=0){
+
+    cart.splice(index,1);
+
+  }
+
+
+  renderCart();
+
+}
+
+
+/* =================================================
+   장바구니 전체 삭제
+================================================= */
+
+function clearCart(){
+
+  if(cart.length===0){
+
+    return;
+
+  }
+
+
+  if(
+    !confirm(
+      "장바구니를 모두 삭제할까요?"
+    )
+  ){
+
+    return;
+
+  }
+
+
+  cart=[];
+
+  renderCart();
+
+}
+
+
+/* =================================================
+   결제
+================================================= */
+
+function openPayment(){
+
+  if(cart.length===0){
+
+    alert(
+      "장바구니가 비어 있습니다."
+    );
+
+    return;
+
+  }
+
+
+  const total =
+    cart.reduce(
+      (sum,item)=>
+        sum+(item.price*item.qty),
+      0
+    );
+
+
+  const money =
+    prompt(
+      "💳 결제\n\n"+
+      "결제 금액: "+
+      total.toLocaleString("ko-KR")+
+      "원\n\n"+
+      "받은 금액을 입력하세요."
+    );
+
+
+  if(money===null){
+
+    return;
+
+  }
+
+
+  const paid =
+    Number(
+      money
+        .replace(/,/g,"")
+        .replace(/원/g,"")
+        .trim()
+    );
+
+
+  if(
+    !Number.isFinite(paid) ||
+    paid<0
+  ){
+
+    alert(
+      "올바른 금액을 입력해주세요."
+    );
+
+    return;
+
+  }
+
+
+  if(paid<total){
+
+    alert(
+      "❌ 금액이 부족합니다.\n\n"+
+      "결제 금액: "+
+      total.toLocaleString("ko-KR")+
+      "원\n"+
+      "받은 금액: "+
+      paid.toLocaleString("ko-KR")+
+      "원\n"+
+      "부족 금액: "+
+      (total-paid)
+        .toLocaleString("ko-KR")+
+      "원"
+    );
+
+    return;
+
+  }
+
+
+  const change =
+    paid-total;
+
+
+  alert(
+    "✅ 결제 완료!\n\n"+
+    "결제 금액: "+
+    total.toLocaleString("ko-KR")+
+    "원\n"+
+    "받은 금액: "+
+    paid.toLocaleString("ko-KR")+
+    "원\n"+
+    "거스름돈: "+
+    change.toLocaleString("ko-KR")+
+    "원"
+  );
+
+
+  cart=[];
+
+  renderCart();
+
+}
+
+
+/* =================================================
+   직접 상품 등록
+================================================= */
+
+function addProduct(){
+
+  const name =
+    document
+      .getElementById("productName")
+      .value
+      .trim();
+
+
+  const price =
+    Number(
+      document
+        .getElementById("productPrice")
+        .value
+        .replace(/[^0-9]/g,"")
+    );
+
+
+  if(!name){
+
+    alert(
+      "상품명을 입력해주세요."
+    );
+
+    return;
+
+  }
+
+
+  if(
+    !Number.isFinite(price) ||
+    price<0
+  ){
+
+    alert(
+      "가격을 올바르게 입력해주세요."
+    );
+
+    return;
+
+  }
+
+
+  /* 중복 확인 */
+
+  const existing =
+    products.find(
+      product=>
+        product.name===name &&
+        product.price===price
+    );
+
+
+  if(existing){
+
+    alert(
+      "이미 등록된 상품입니다.\n\n"+
+      "상품코드: "+
+      existing.id
+    );
+
+    return;
+
+  }
+
+
+  /* 고유 상품코드 */
+
+  const id =
+    generateProductCode();
+
+
+  products.push({
+
+    id:id,
+
+    name:name,
+
+    price:price
+
+  });
+
+
+  saveProducts();
+
+  renderProductButtons();
+
+  renderSavedProducts();
+
+
+  document
+    .getElementById("productName")
+    .value="";
+
+  document
+    .getElementById("productPrice")
+    .value="";
+
+
+  alert(
+    "✅ 상품 등록 완료!\n\n"+
+    "상품코드: "+id+"\n"+
+    "상품명: "+name+"\n"+
+    "가격: "+
+    price.toLocaleString("ko-KR")+"원"
+  );
+
+}
+
+
+/* =================================================
+   상품목록
+================================================= */
+
+function renderSavedProducts(){
+
+  const box =
+    document.getElementById(
+      "savedProducts"
+    );
+
+  box.innerHTML="";
+
+
+  if(products.length===0){
+
+    box.innerHTML=
+      `<div class="empty">
+        등록된 상품이 없습니다.
+      </div>`;
+
+    return;
+
+  }
+
+
+  products.forEach((product,index)=>{
+
+    const div =
+      document.createElement("div");
+
+    div.className="savedProduct";
+
+
+    div.innerHTML=`
+
+      <div class="savedProductInfo">
+
+        <div class="savedProductName">
+          ${escapeHTML(product.name)}
+        </div>
+
+        <div class="savedProductCode">
+          상품코드: ${escapeHTML(product.id)}
+        </div>
+
+        <div class="savedProductPrice">
+          ${product.price.toLocaleString("ko-KR")}원
+        </div>
+
+      </div>
+
+
+      <button
+        class="red"
+        onclick="deleteProduct(${index})">
+        삭제
+      </button>
+
+    `;
+
+
+    box.appendChild(div);
+
+  });
+
+}
+
+
+/* =================================================
+   상품 삭제
+================================================= */
+
+function deleteProduct(index){
+
+  const product =
+    products[index];
+
+
+  if(
+    !confirm(
+      `"${product.name}" 상품을 삭제할까요?`
+    )
+  ){
+
+    return;
+
+  }
+
+
+  products.splice(index,1);
+
+  saveProducts();
+
+  renderProductButtons();
+
+  renderSavedProducts();
+
+}
+
+
+/* =================================================
+   ★ 핵심
+   상품코드 기반 바코드 생성
+================================================= */
+
+function generateProductBarcode(){
+
+  const name =
+    document
+      .getElementById("barcodeName")
+      .value
+      .trim();
+
+
+  const price =
+    Number(
+      document
+        .getElementById("barcodePrice")
+        .value
+        .replace(/[^0-9]/g,"")
+    );
+
+
+  if(!name){
+
+    alert(
+      "상품명을 입력해주세요."
+    );
+
+    return;
+
+  }
+
+
+  if(
+    !Number.isFinite(price) ||
+    price<0
+  ){
+
+    alert(
+      "가격을 올바르게 입력해주세요."
+    );
+
+    return;
+
+  }
+
+
+  /*
+    같은 상품이 이미 있으면
+    기존 상품코드를 사용한다.
+  */
+
+  let product =
+    products.find(
+      item=>
+        item.name===name &&
+        item.price===price
+    );
+
+
+  /*
+    없으면 새 상품코드를 만든다.
+  */
+
+  if(!product){
+
+    product={
+
+      id:
+        generateProductCode(),
+
+      name:name,
+
+      price:price
+
+    };
+
+
+    products.push(product);
+
+    saveProducts();
+
+    renderProductButtons();
+
+    renderSavedProducts();
+
+  }
+
+
+  /*
+    ★ 바코드 실제 데이터
+
+    상품코드|상품명|가격
+
+    예:
+
+    100005|콜라|1500
+  */
+
+  const barcodeData =
+    product.id+
+    "|"+
+    product.name+
+    "|"+
+    product.price;
+
+
+  /*
+    CODE128 생성
+  */
+
+  JsBarcode(
+    "#barcode",
+    barcodeData,
+    {
+
+      format:"CODE128",
+
+      width:2,
+
+      height:110,
+
+      displayValue:true,
+
+      fontSize:16,
+
+      margin:15
+
+    }
+  );
+
+
+  /*
+    화면 정보
+  */
+
+  document
+    .getElementById("barcodeInfo")
+    .textContent =
+      product.name+
+      " · "+
+      product.price.toLocaleString("ko-KR")+
+      "원";
+
+
+  document
+    .getElementById("barcodeCode")
+    .textContent =
+      "상품코드: "+product.id;
+
+
+  alert(
+    "✅ 바코드 생성 완료!\n\n"+
+    "상품코드: "+product.id+"\n"+
+    "상품명: "+product.name+"\n"+
+    "가격: "+
+    product.price.toLocaleString("ko-KR")+
+    "원\n\n"+
+    "📦 상품목록에도 자동 등록되었습니다."
+  );
+
+}
+
+
+/* =================================================
+   바코드 인쇄
+================================================= */
+
+function printBarcode(){
+
+  const barcode =
+    document.getElementById(
+      "barcode"
+    );
+
+
+  if(
+    !barcode ||
+    !barcode.innerHTML.trim()
+  ){
+
+    alert(
+      "먼저 바코드를 생성해주세요."
+    );
+
+    return;
+
+  }
+
+
+  window.print();
+
+}
+
+
+/* =================================================
+   ★ 카메라 바코드 리더기
+================================================= */
+
+async function startScanner(){
+
+  if(scannerControls){
+
+    return;
+
+  }
+
+
+  const video =
+    document.getElementById(
+      "scanner"
+    );
+
+
+  const status =
+    document.getElementById(
+      "scanStatus"
+    );
+
+
+  const result =
+    document.getElementById(
+      "scanResult"
+    );
+
+
+  status.textContent =
+    "📷 카메라를 준비하는 중...";
+
+
+  try{
+
+    const reader =
+      new ZXingBrowser
+        .BrowserMultiFormatReader();
+
+
+    scannerControls =
+      await reader.decodeFromConstraints(
+
+        {
+
+          video:{
+
+            facingMode:{
+
+              ideal:"environment"
+
+            }
+
+          }
+
+        },
+
+        video,
+
+        (code,error)=>{
+
+          if(!code){
+
+            return;
+
+          }
+
+
+          const value =
+            code.getText();
+
+
+          result.textContent =
+            "인식: "+value;
+
+
+          /* =====================================
+             상품코드|상품명|가격
+          ===================================== */
+
+          if(
+            value.includes("|")
+          ){
+
+            const parts =
+              value.split("|");
+
+
+            const productCode =
+              parts[0];
+
+
+            const barcodeName =
+              parts[1];
+
+
+            const barcodePrice =
+              Number(parts[2]);
+
+
+            /*
+              상품코드로 먼저 찾는다.
+            */
+
+            let product =
+              products.find(
+                item=>
+                  item.id===productCode
+              );
+
+
+            /*
+              상품목록에 상품코드가 없을 경우
+              바코드 데이터로 복구 등록
+            */
+
+            if(!product){
+
+              if(
+                barcodeName &&
+                Number.isFinite(barcodePrice)
+              ){
+
+                product={
+
+                  id:productCode,
+
+                  name:barcodeName,
+
+                  price:barcodePrice
+
+                };
+
+
+                products.push(product);
+
+                saveProducts();
+
+                renderProductButtons();
+
+                renderSavedProducts();
+
+              }
+
+            }
+
+
+            /*
+              상품을 찾았으면 장바구니 추가
+            */
+
+            if(product){
+
+              addToCart(product);
+
+
+              status.textContent =
+                "✅ 상품 인식 완료";
+
+
+              result.textContent =
+                product.name+
+                " · "+
+                product.price
+                  .toLocaleString("ko-KR")+
+                "원";
+
+
+              stopScanner();
+
+              return;
+
+            }
+
+
+            /*
+              상품을 찾지 못한 경우
+            */
+
+            status.textContent =
+              "❌ 상품을 찾을 수 없습니다.";
+
+            return;
+
+          }
+
+
+          /* =====================================
+             기존 숫자만 있는 가격 바코드
+          ===================================== */
+
+          if(
+            /^\d+$/.test(value)
+          ){
+
+            const price =
+              Number(value);
+
+
+            const product={
+
+              id:
+                "price-"+value,
+
+              name:"가격 상품",
+
+              price:price
+
+            };
+
+
+            addToCart(product);
+
+
+            status.textContent =
+              "✅ 가격 바코드 인식 완료";
+
+
+            result.textContent =
+              price.toLocaleString("ko-KR")+
+              "원";
+
+
+            stopScanner();
+
+          }
+
+        }
+
+      );
+
+
+    status.textContent =
+      "📷 바코드를 카메라에 비춰주세요.";
+
+  }catch(error){
+
+    console.error(error);
+
+
+    status.textContent =
+      "❌ 카메라를 사용할 수 없습니다.";
+
+
+    alert(
+      "카메라 사용 권한을 허용해주세요.\n\n"+
+      "휴대폰에서는 HTTPS 환경에서 "+
+      "카메라가 정상적으로 작동해야 합니다."
+    );
+
+  }
+
+}
+
+
+/* =================================================
+   카메라 종료
+================================================= */
+
+function stopScanner(){
+
+  const video =
+    document.getElementById(
+      "scanner"
+    );
+
+
+  if(scannerControls){
+
+    scannerControls.stop();
+
+    scannerControls=null;
+
+  }
+
+
+  if(video.srcObject){
+
+    video.srcObject
+      .getTracks()
+      .forEach(
+        track=>track.stop()
+      );
+
+
+    video.srcObject=null;
+
+  }
+
+
+  document
+    .getElementById("scanStatus")
+    .textContent =
+      "카메라가 꺼졌습니다.";
+
+}
+
+
+/* =================================================
+   HTML 안전 처리
+================================================= */
+
+function escapeHTML(text){
+
+  return String(text)
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+
+
+/* =================================================
+   초기 실행
+================================================= */
+
+renderProductButtons();
+
+renderSavedProducts();
+
+renderCart();
+
+</script>
+
+</body>
+</html>
